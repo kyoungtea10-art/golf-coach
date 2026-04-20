@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="골프코치">
+<meta name="theme-color" content="#1D9E75">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>AI 골프 코치</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{height:100%;overflow:hidden;background:#0d0d0d;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif}
+
+/* ── 설치 배너 ── */
+#installBanner{display:none;position:absolute;top:0;left:0;right:0;z-index:999;background:#1D9E75;padding:10px 16px;flex-direction:column;gap:6px}
+#installBanner.show{display:flex}
+.install-row{display:flex;align-items:center;justify-content:space-between}
+.install-text{font-size:13px;color:#fff;line-height:1.4}
+.install-btns{display:flex;gap:8px;margin-top:2px}
+.install-yes{padding:7px 16px;background:#fff;color:#0F6E56;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer}
+.install-no{padding:7px 12px;background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+
+/* ── 화면 전환 ── */
+.screen{display:none;flex-direction:column;height:100vh;height:100dvh;position:relative}
+.screen.active{display:flex}
+
+/* ── 홈 ── */
+#homeScreen{align-items:center;justify-content:center;background:#0d0d0d;padding:2rem;gap:0}
+.logo-circle{width:100px;height:100px;border-radius:28px;background:#1D9E75;display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem}
+.logo-circle svg{width:56px;height:56px}
+.home-title{font-size:26px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px;text-align:center}
+.home-sub{font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:2rem;text-align:center;line-height:1.7}
+.home-features{display:flex;flex-direction:column;gap:10px;width:100%;max-width:300px;margin-bottom:2rem}
+.feature-item{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.06);border-radius:12px;padding:12px 14px}
+.feature-icon{width:36px;height:36px;border-radius:10px;background:rgba(29,158,117,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.feature-text{font-size:13px;color:rgba(255,255,255,0.8);line-height:1.4}
+.feature-text strong{color:#fff;display:block;font-size:14px;margin-bottom:1px}
+.start-btn{width:100%;max-width:300px;padding:16px;background:#1D9E75;color:#fff;border:none;border-radius:14px;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:-0.3px}
+.ios-hint{margin-top:14px;font-size:11px;color:rgba(255,255,255,0.3);text-align:center;line-height:1.7;display:none}
+.ios-hint.show{display:block}
+
+/* ── 코치 화면 ── */
+#coachScreen{background:#0d0d0d}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,12px) 16px 8px;padding-top:max(env(safe-area-inset-top),12px);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.back-btn{background:rgba(255,255,255,0.08);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.app-name{font-size:16px;font-weight:700}
+.live-pill{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.5px;transition:all 0.3s}
+.pill-off{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.4)}
+.pill-live{background:#E24B4A;color:#fff}
+.pill-pause{background:rgba(239,159,39,0.25);color:#EF9F27}
+
+.club-scroll{display:flex;gap:6px;padding:0 16px 8px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.club-scroll::-webkit-scrollbar{display:none}
+.club-btn{flex-shrink:0;padding:7px 15px;border-radius:20px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:rgba(255,255,255,0.5);font-size:13px;cursor:pointer}
+.club-btn.on{background:#1D9E75;color:#fff;border-color:#1D9E75}
+
+/* 카메라 */
+.cam-area{position:relative;flex:1;overflow:hidden;background:#111;min-height:0}
+#vid{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+#poseCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:none}
+
+.cam-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:2rem}
+.cam-ph-icon{width:80px;height:80px;border-radius:22px;background:rgba(29,158,117,0.12);border:1px solid rgba(29,158,117,0.3);display:flex;align-items:center;justify-content:center}
+.cam-ph-title{font-size:17px;font-weight:600;color:#fff}
+.cam-ph-sub{font-size:14px;color:rgba(255,255,255,0.45);text-align:center;line-height:1.6}
+.cam-start-btn{padding:13px 32px;background:#1D9E75;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer}
+.cam-err{display:none;font-size:13px;color:#F09595;text-align:center;line-height:1.6;max-width:280px}
+
+.hud-top{position:absolute;top:10px;left:10px;right:10px;display:none;justify-content:space-between;pointer-events:none}
+.hud-pill{background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:5px 13px;border-radius:20px;font-size:12px;color:#fff;font-weight:500}
+.hud-score{color:#5DCAA5;font-weight:700}
+
+.coach-bubble{position:absolute;bottom:10px;left:10px;right:10px;display:none;background:rgba(0,0,0,0.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:16px;padding:12px 15px;border:1px solid rgba(255,255,255,0.07)}
+.coach-lbl{font-size:10px;color:#5DCAA5;font-weight:700;letter-spacing:0.8px;margin-bottom:4px}
+.coach-txt{font-size:13px;color:#fff;line-height:1.6}
+
+/* 컨트롤 */
+.controls{display:flex;gap:10px;padding:10px 16px;flex-shrink:0;align-items:center}
+.btn-analyze{flex:1;padding:14px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:-0.3px}
+.btn-go{background:#1D9E75;color:#fff}
+.btn-stop{background:#E24B4A;color:#fff}
+.btn-icon{width:48px;height:48px;flex-shrink:0;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.btn-icon.muted{background:rgba(229,75,74,0.12);border-color:rgba(229,75,74,0.4)}
+
+/* 메트릭 */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 16px 8px;flex-shrink:0}
+.met{background:rgba(255,255,255,0.05);border-radius:10px;padding:8px 5px;text-align:center}
+.met-lbl{font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:4px}
+.met-val{font-size:16px;font-weight:700}
+.met-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.08);margin-top:5px;overflow:hidden}
+.met-fill{height:100%;border-radius:2px;transition:width 0.5s,background 0.5s}
+
+/* 피드백 */
+.fb-area{flex-shrink:0;padding:0 16px 6px;overflow-y:auto;max-height:130px}
+.fb-title{font-size:10px;color:rgba(255,255,255,0.3);font-weight:700;letter-spacing:0.7px;margin-bottom:7px}
+.fb-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
+.fb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.dot-g{background:#1D9E75}.dot-w{background:#EF9F27}.dot-r{background:#E24B4A}
+.fb-txt{font-size:12px;color:rgba(255,255,255,0.78);line-height:1.55}
+.fb-empty{font-size:12px;color:rgba(255,255,255,0.25);padding:6px 0}
+
+/* 자세 참고 */
+.pose-ref{flex-shrink:0;padding:0 16px;padding-bottom:max(env(safe-area-inset-bottom),12px)}
+.pose-ref-lbl{font-size:10px;color:rgba(255,255,255,0.3);font-weight:700;letter-spacing:0.7px;margin-bottom:7px}
+.pose-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pose-step{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:8px 4px;text-align:center;transition:all 0.3s}
+.pose-step.cur{background:rgba(29,158,117,0.15);border-color:rgba(29,158,117,0.5)}
+.ps-fig{display:flex;justify-content:center;margin-bottom:4px;height:52px;align-items:center}
+.ps-name{font-size:10px;font-weight:600;color:rgba(255,255,255,0.6)}
+.pose-step.cur .ps-name{color:#5DCAA5}
+.ps-desc{font-size:9px;color:rgba(255,255,255,0.3);line-height:1.35;margin-top:2px}
+.pose-step.cur .ps-desc{color:rgba(93,202,165,0.65)}
+</style>
+</head>
+<body>
+
+<!-- 설치 배너 -->
+<div id="installBanner">
+  <div class="install-row">
+    <div class="install-text">
+      <strong style="font-size:14px">📲 앱으로 설치하기</strong><br>
+      홈화면에 추가하면 일반 앱처럼 사용할 수 있어요
+    </div>
+  </div>
+  <div class="install-btns">
+    <button class="install-yes" id="installYes">홈화면에 추가</button>
+    <button class="install-no" id="installNo">나중에</button>
+  </div>
+</div>
+
+<!-- 홈 화면 -->
+<div class="screen active" id="homeScreen">
+  <div class="logo-circle">
+    <svg viewBox="0 0 56 56" fill="none">
+      <circle cx="28" cy="28" r="20" stroke="white" stroke-width="2" fill="none"/>
+      <line x1="28" y1="8" x2="28" y2="48" stroke="white" stroke-width="2"/>
+      <path d="M28 8 L40 18 L28 28" fill="white"/>
+      <circle cx="28" cy="46" r="3" fill="white"/>
+    </svg>
+  </div>
+  <div class="home-title">AI 골프 코치</div>
+  <div class="home-sub">스마트폰 카메라로 실시간 자세 분석<br>마치 코치가 옆에 있는 것처럼</div>
+  <div class="home-features">
+    <div class="feature-item">
+      <div class="feature-icon">📷</div>
+      <div class="feature-text"><strong>실시간 골격 분석</strong>카메라로 몸 전체 관절을 추적합니다</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">🔊</div>
+      <div class="feature-text"><strong>음성 코치 피드백</strong>교정 포인트를 음성으로 알려드립니다</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon">📊</div>
+      <div class="feature-text"><strong>실시간 점수 측정</strong>그립·어깨·무릎·체중 이동을 수치화합니다</div>
+    </div>
+  </div>
+  <button class="start-btn" onclick="goCoach()">코치 시작하기</button>
+  <div class="ios-hint" id="iosHint">
+    iPhone에서 홈화면 앱으로 설치하려면<br>
+    Safari 하단 공유버튼 → "홈 화면에 추가" 선택
+  </div>
+</div>
+
+<!-- 코치 화면 -->
+<div class="screen" id="coachScreen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="back-btn" onclick="goHome()">‹</button>
+      <span class="app-name">AI 골프 코치</span>
+    </div>
+    <span class="live-pill pill-off" id="livePill">대기중</span>
+  </div>
+
+  <div class="club-scroll">
+    <button class="club-btn on" onclick="setClub(this,'드라이버')">🏌 드라이버</button>
+    <button class="club-btn" onclick="setClub(this,'아이언')">⛳ 아이언</button>
+    <button class="club-btn" onclick="setClub(this,'어프로치')">🎯 어프로치</button>
+    <button class="club-btn" onclick="setClub(this,'퍼팅')">🕳 퍼팅</button>
+    <button class="club-btn" onclick="setClub(this,'벙커')">🏖 벙커</button>
+  </div>
+
+  <div class="cam-area">
+    <video id="vid" playsinline muted></video>
+    <canvas id="poseCanvas"></canvas>
+    <div class="cam-placeholder" id="camPH">
+      <div class="cam-ph-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+          <path d="M6 15C6 13.9 6.9 13 8 13H32C33.1 13 34 13.9 34 15V31C34 32.1 33.1 33 32 33H8C6.9 33 6 32.1 6 31V15Z" stroke="#1D9E75" stroke-width="1.8" fill="none"/>
+          <circle cx="20" cy="23" r="5" stroke="#1D9E75" stroke-width="1.8" fill="none"/>
+          <rect x="15" y="11" width="10" height="3" rx="1.5" fill="#1D9E75"/>
+          <circle cx="30" cy="17" r="1.5" fill="#1D9E75"/>
+        </svg>
+      </div>
+      <div class="cam-ph-title">카메라 준비</div>
+      <div class="cam-ph-sub">전신이 보이도록 폰을 세워두고<br>약 2~3m 거리에서 촬영하세요</div>
+      <button class="cam-start-btn" onclick="startCam()">📷 카메라 켜기</button>
+      <div class="cam-err" id="camErr">
+        카메라 권한이 거부되었습니다.<br>
+        브라우저 주소창 왼쪽 🔒 아이콘 →<br>
+        카메라 → 허용 으로 변경 후 새로고침
+      </div>
+    </div>
+    <div class="hud-top" id="hudTop">
+      <div class="hud-pill" id="phaseHud">어드레스</div>
+      <div class="hud-pill hud-score" id="scoreHud">-- 점</div>
+    </div>
+    <div class="coach-bubble" id="coachBubble">
+      <div class="coach-lbl">AI 코치</div>
+      <div class="coach-txt" id="coachTxt">분석 시작 버튼을 눌러주세요!</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-analyze btn-go" id="analyzeBtn" onclick="toggleAnalysis()">▶ 분석 시작</button>
+    <button class="btn-icon" id="voiceBtn" onclick="toggleVoice()" title="음성">🔊</button>
+    <button class="btn-icon" id="flipBtn" onclick="flipCam()" title="카메라 전환">🔄</button>
+  </div>
+
+  <div class="metrics">
+    <div class="met"><div class="met-lbl">그립</div><div class="met-val" id="mG" style="color:#5DCAA5">--</div><div class="met-bar"><div class="met-fill" id="mGB" style="width:0%"></div></div></div>
+    <div class="met"><div class="met-lbl">어깨회전</div><div class="met-val" id="mS" style="color:#5DCAA5">--</div><div class="met-bar"><div class="met-fill" id="mSB" style="width:0%"></div></div></div>
+    <div class="met"><div class="met-lbl">무릎각도</div><div class="met-val" id="mK" style="color:#5DCAA5">--</div><div class="met-bar"><div class="met-fill" id="mKB" style="width:0%"></div></div></div>
+    <div class="met"><div class="met-lbl">체중이동</div><div class="met-val" id="mW" style="color:#5DCAA5">--</div><div class="met-bar"><div class="met-fill" id="mWB" style="width:0%"></div></div></div>
+  </div>
+
+  <div class="fb-area">
+    <div class="fb-title">실시간 피드백</div>
+    <div id="fbBody"><div class="fb-empty">분석을 시작하면 코치 피드백이 표시됩니다</div></div>
+  </div>
+
+  <div class="pose-ref">
+    <div class="pose-ref-lbl">단계별 올바른 자세</div>
+    <div class="pose-grid" id="poseGrid"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466862/drawing_utils.js"></script>
+<script>
+'use strict';
+// ── PWA 서비스워커 등록 ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+// ── 홈화면 설치 배너 ──
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installYes').onclick=async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  const r=await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  document.getElementById('installBanner').classList.remove('show');
+};
+document.getElementById('installNo').onclick=()=>{
+  document.getElementById('installBanner').classList.remove('show');
+};
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// iOS 힌트
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isInStandalone=('standalone' in navigator&&navigator.standalone);
+if(isIOS&&!isInStandalone) document.getElementById('iosHint').classList.add('show');
+
+// ── 앱 상태 ──
+let club='드라이버', analyzing=false, voiceOn=true;
+let stream=null, facing='environment';
+let poseInst=null, camInst=null, rafId=null;
+let frameN=0, lastFbMs=0, lastSpeakMs=0, curPhase=0, feedbacks=[];
+
+const PHASES={
+  '드라이버':['어드레스','백스윙','임팩트','팔로우'],
+  '아이언':['어드레스','백스윙','임팩트','팔로우'],
+  '어프로치':['셋업','테이크백','임팩트','팔로우'],
+  '퍼팅':['어드레스','백스트로크','임팩트','팔로우'],
+  '벙커':['셋업','백스윙','임팩트','팔로우']
+};
+
+const POSE_REFS={
+  '드라이버':[{n:'어드레스',d:'어깨너비\n무릎굴곡'},{n:'백스윙',d:'왼팔직선\n어깨회전'},{n:'임팩트',d:'골반먼저\n체중이동'},{n:'팔로우',d:'클럽위로\n균형유지'}],
+  '아이언':[{n:'어드레스',d:'공 중앙\n핸드퍼스트'},{n:'백스윙',d:'상체90도\n왼팔직선'},{n:'임팩트',d:'디봇앞에\n다운블로'},{n:'팔로우',d:'끝까지뻗어\n균형'}],
+  '어프로치':[{n:'셋업',d:'오픈스탠스\n왼발체중'},{n:'테이크백',d:'짧게부드럽게\n손목코킹'},{n:'임팩트',d:'공먼저\n페이스스퀘어'},{n:'팔로우',d:'방향유지\n뻗어'}],
+  '퍼팅':[{n:'어드레스',d:'눈이공위\n어깨평행'},{n:'백스트로크',d:'어깨로만\n손목고정'},{n:'임팩트',d:'가속하며\n타격'},{n:'팔로우',d:'같은길이\n진자운동'}],
+  '벙커':[{n:'셋업',d:'페이스오픈\n발파묻기'},{n:'백스윙',d:'가파르게\n크게들어'},{n:'임팩트',d:'공뒤3cm\n폭발적으로'},{n:'팔로우',d:'끝까지완성\n모래함께'}]
+};
+
+const FB={
+  '드라이버':{
+    g:['어깨 회전이 훌륭합니다! 이 리듬을 유지하세요.','체중 이동이 완벽합니다.','그립이 안정적이에요.'],
+    w:['백스윙 시 왼팔을 조금 더 펴보세요.','어깨 정렬을 목표 라인에 맞춰보세요.','공을 끝까지 보세요.'],
+    r:['오른 어깨가 앞으로 나옵니다. 골반을 먼저 회전하세요!','무릎을 조금 더 세워보세요.','팔로우스루를 끝까지 완성하세요.']
+  },
+  '아이언':{
+    g:['내려치는 임팩트 각도가 좋아요!','스탠스가 안정적입니다.','손목 코킹 타이밍이 좋아요.'],
+    w:['몸통 회전을 조금 더 해보세요.','백스윙을 조금 더 크게 해보세요.','공 위치를 약간 조정해보세요.'],
+    r:['팔만 쓰고 있어요. 몸통을 함께 회전하세요.','헤드업 주의! 임팩트 후에도 공을 보세요.','체중을 왼발로 이동하세요.']
+  },
+  '어프로치':{
+    g:['부드럽고 리드미컬한 스윙이에요.','오픈 스탠스가 잘 설정됐어요.','컴팩트한 스윙입니다.'],
+    w:['손목 사용을 줄여보세요.','스피드를 일정하게 유지하세요.','팔로우를 더 길게 해보세요.'],
+    r:['손목을 너무 써요. 팔 전체로 스윙하세요.','체중을 왼발로 60% 이동하세요.']
+  },
+  '퍼팅':{
+    g:['완벽한 진자 운동입니다!','눈이 공 위에 잘 있어요.','리듬이 일정해요.'],
+    w:['손목을 더 고정해 어깨로만 스트로크하세요.','팔로우를 백스트로크 길이만큼 하세요.'],
+    r:['손목 플릭이 발생해요. 손목을 완전히 고정하세요!','헤드업 주의! 공이 굴러간 후에 시선을 올리세요.']
+  },
+  '벙커':{
+    g:['폭발적인 임팩트가 좋아요!','공 뒤를 정확히 타격하고 있어요.','페이스 오픈이 잘 됐어요.'],
+    w:['스윙을 조금 더 강하게 해보세요.','팔로우를 더 완성해보세요.'],
+    r:['공 뒤 모래를 쳐야 합니다!','30% 더 강하게 스윙하세요.']
+  }
+};
+
+// ── 화면 전환 ──
+function goCoach(){
+  document.getElementById('homeScreen').classList.remove('active');
+  document.getElementById('coachScreen').classList.add('active');
+  renderPoseRef();
+}
+function goHome(){
+  stopAll();
+  document.getElementById('coachScreen').classList.remove('active');
+  document.getElementById('homeScreen').classList.add('active');
+}
+
+function setClub(btn,c){
+  club=c;
+  document.querySelectorAll('.club-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  curPhase=0; feedbacks=[];
+  renderPoseRef(); renderFB();
+}
+
+// ── 자세 참고 렌더 ──
+function renderPoseRef(){
+  const refs=POSE_REFS[club]||POSE_REFS['드라이버'];
+  document.getElementById('poseGrid').innerHTML=refs.map((r,i)=>`
+    <div class="pose-step${i===curPhase?' cur':''}" id="ps${i}">
+      <div class="ps-fig">${figSVG(i,i===curPhase)}</div>
+      <div class="ps-name">${r.n}</div>
+      <div class="ps-desc">${r.d.replace(/\n/g,'<br>')}</div>
+    </div>`).join('');
+}
+
+function figSVG(phase,active){
+  const c=active?'#5DCAA5':'rgba(255,255,255,0.25)';
+  const cx=16,sw=1.5;
+  const configs=[
+    {sa:0,la:-20,ra:20},
+    {sa:-40,la:-70,ra:10},
+    {sa:15,la:30,ra:30},
+    {sa:30,la:60,ra:50}
+  ];
+  const cfg=configs[phase%4];
+  const lsx=cx-10+Math.sin(cfg.sa*Math.PI/180)*5;
+  const lsy=20;
+  const rsx=cx+10-Math.sin(cfg.sa*Math.PI/180)*5;
+  const rsy=20+Math.sin(cfg.sa*Math.PI/180)*3;
+  const lex=lsx+Math.sin(cfg.la*Math.PI/180)*10;
+  const ley=lsy+Math.cos(cfg.la*Math.PI/180)*8;
+  const rex=rsx-Math.sin(cfg.ra*Math.PI/180)*10;
+  const rey=rsy+Math.cos(cfg.ra*Math.PI/180)*8;
+  return `<svg width="32" height="58" viewBox="0 0 32 58" fill="none">
+    <circle cx="${cx}" cy="7" r="5" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${cx}" y1="12" x2="${cx}" y2="35" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${lsx}" y1="${lsy}" x2="${rsx}" y2="${rsy}" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${lsx}" y1="${lsy}" x2="${lex}" y2="${ley}" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${rsx}" y1="${rsy}" x2="${rex}" y2="${rey}" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${cx-7}" y1="35" x2="${cx-8}" y2="46" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${cx+7}" y1="35" x2="${cx+8}" y2="46" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${cx-8}" y1="46" x2="${cx-7}" y2="57" stroke="${c}" stroke-width="${sw}"/>
+    <line x1="${cx+8}" y1="46" x2="${cx+7}" y2="57" stroke="${c}" stroke-width="${sw}"/>
+  </svg>`;
+}
+
+// ── 카메라 ──
+async function startCam(){
+  document.getElementById('camErr').style.display='none';
+  try{
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}},audio:false
+    });
+    const vid=document.getElementById('vid');
+    vid.srcObject=stream; vid.style.display='block';
+    document.getElementById('poseCanvas').style.display='block';
+    document.getElementById('camPH').style.display='none';
+    document.getElementById('hudTop').style.display='flex';
+    document.getElementById('coachBubble').style.display='block';
+    setPill('카메라 켜짐','pill-pause');
+    await vid.play();
+    initPose(vid);
+  }catch(e){
+    document.getElementById('camErr').style.display='block';
+    console.error('Camera error:',e);
+  }
+}
+
+async function flipCam(){
+  facing=(facing==='environment'?'user':'environment');
+  if(stream) await startCam();
+}
+
+function initPose(vid){
+  const canvas=document.getElementById('poseCanvas');
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=vid.videoWidth||640;canvas.height=vid.videoHeight||480;};
+  vid.addEventListener('loadedmetadata',resize,{once:true});
+  resize();
+
+  if(typeof Pose!=='undefined'){
+    if(poseInst){try{poseInst.close();}catch(_){}}
+    poseInst=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${f}`});
+    poseInst.setOptions({modelComplexity:1,smoothLandmarks:true,enableSegmentation:false,minDetectionConfidence:0.5,minTrackingConfidence:0.5});
+    poseInst.onResults(res=>{
+      if(!analyzing)return;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.save(); ctx.scale(-1,1); ctx.translate(-canvas.width,0);
+      if(res.poseLandmarks){
+        drawConnectors(ctx,res.poseLandmarks,POSE_CONNECTIONS,{color:'rgba(29,158,117,0.9)',lineWidth:2.5});
+        drawLandmarks(ctx,res.poseLandmarks,{color:'#5DCAA5',lineWidth:1,radius:4});
+        doAnalysis(res.poseLandmarks);
+      }
+      ctx.restore();
+    });
+    if(camInst){try{camInst.stop();}catch(_){}}
+    camInst=new Camera(vid,{
+      onFrame:async()=>{if(analyzing&&poseInst)await poseInst.send({image:vid});},
+      width:640,height:480
+    });
+    camInst.start();
+  } else {
+    simMode(vid,canvas,ctx);
+  }
+}
+
+function doAnalysis(lm){
+  if(++frameN%4!==0)return;
+  const lS=lm[11],rS=lm[12],lH=lm[23],rH=lm[24],lK=lm[25],rK=lm[26],lA=lm[27],rA=lm[28];
+  const shA=Math.abs(Math.atan2(rS.y-lS.y,rS.x-lS.x)*180/Math.PI);
+  const knA=(ang(lH,lK,lA)+ang(rH,rK,rA))/2;
+  const wB=Math.round(lA.x/(lA.x+rA.x+1e-6)*100);
+  const g=cl(100-shA*1.4), s=cl(shA*2.2), k=cl((180-knA)/80*100), w=cl(100-Math.abs(wB-55)*2.4);
+  setMetrics(g,s,k,w);
+  tryFB(g,s,k,w);
+  const p=shA<12?0:shA<35?1:shA<20?2:3;
+  if(p!==curPhase){curPhase=p;updatePhase();}
+  document.getElementById('scoreHud').textContent=cl((g+s+k+w)/4)+' 점';
+}
+
+function ang(a,b,c){
+  const ab={x:a.x-b.x,y:a.y-b.y},cb={x:c.x-b.x,y:c.y-b.y};
+  const d=ab.x*cb.x+ab.y*cb.y;
+  const m=Math.sqrt((ab.x**2+ab.y**2)*(cb.x**2+cb.y**2));
+  return Math.acos(Math.max(-1,Math.min(1,d/m)))*180/Math.PI;
+}
+function cl(v){return Math.max(0,Math.min(100,Math.round(v)));}
+
+function simMode(vid,canvas,ctx){
+  let t=0;
+  function frame(){
+    rafId=requestAnimationFrame(frame);
+    if(!analyzing)return;
+    t+=0.025;
+    const W=canvas.width||320,H=canvas.height||480;
+    ctx.clearRect(0,0,W,H);
+    const sw=(Math.sin(t)+1)/2;
+    const CX=W/2, CY=H*0.28, lx=Math.sin(t)*W*0.03;
+    const J={
+      hd:[CX+lx,CY-H*0.15],nk:[CX+lx,CY-H*0.105],
+      lS:[CX-W*0.13+lx,CY-H*0.09],rS:[CX+W*0.13+lx,CY-H*0.09],
+      lE:[CX-W*0.16+lx,CY-H*0.02],rE:[CX+W*0.14+lx,CY-H*0.04+sw*H*0.05],
+      lW:[CX-W*0.14+lx,CY+H*0.02],rW:[CX+W*0.19+lx,CY-H*0.01+sw*H*0.07],
+      hp:[CX+lx*0.4,CY+H*0.025],lH:[CX-W*0.07+lx*0.3,CY+H*0.03],rH:[CX+W*0.07+lx*0.3,CY+H*0.03],
+      lK:[CX-W*0.09,CY+H*0.13],rK:[CX+W*0.09,CY+H*0.13],
+      lA:[CX-W*0.09,CY+H*0.23],rA:[CX+W*0.09,CY+H*0.23]
+    };
+    const B=[['hd','nk'],['nk','lS'],['nk','rS'],['lS','lE'],['lE','lW'],['rS','rE'],['rE','rW'],['nk','hp'],['hp','lH'],['hp','rH'],['lH','lK'],['lK','lA'],['rH','rK'],['rK','rA']];
+    ctx.strokeStyle='rgba(29,158,117,0.9)';ctx.lineWidth=Math.max(2,W*0.006);ctx.lineCap='round';
+    B.forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(...J[a]);ctx.lineTo(...J[b]);ctx.stroke();});
+    const r=Math.max(3,W*0.013);
+    Object.values(J).forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='#5DCAA5';ctx.fill();});
+    const g=cl(72+Math.sin(t*1.3)*15),s=cl(55+sw*35),k=cl(68+Math.sin(t*0.8)*12),w=cl(58+sw*28);
+    setMetrics(g,s,k,w);
+    tryFB(g,s,k,w);
+    const p=Math.floor(sw*3.99);
+    if(p!==curPhase){curPhase=p;updatePhase();}
+    document.getElementById('scoreHud').textContent=cl((g+s+k+w)/4)+' 점';
+  }
+  frame();
+}
+
+function setMetrics(g,s,k,w){
+  const map=[['G',g,'%'],['S',s,'°'],['K',k,'°'],['W',w,'%']];
+  map.forEach(([id,v,u])=>{
+    const el=document.getElementById('m'+id);
+    el.textContent=v+u;
+    el.style.color=v>75?'#5DCAA5':v>50?'#EF9F27':'#F09595';
+    const bar=document.getElementById('m'+id+'B');
+    bar.style.width=v+'%';
+    bar.style.background=v>75?'#1D9E75':v>50?'#EF9F27':'#E24B4A';
+  });
+}
+
+function tryFB(g,s,k,w){
+  const now=Date.now();
+  if(now-lastFbMs<4500)return;
+  lastFbMs=now;
+  const pool=FB[club]||FB['드라이버'];
+  feedbacks=[[g,0],[s,1],[k,2]].map(([v,i])=>{
+    if(v>78)return{t:'g',msg:pool.g[i]||pool.g[0]};
+    if(v>55)return{t:'w',msg:pool.w[i%pool.w.length]||pool.w[0]};
+    return{t:'r',msg:pool.r[i%pool.r.length]||pool.r[0]};
+  });
+  renderFB();
+  const worst=feedbacks.find(f=>f.t==='r')||feedbacks.find(f=>f.t==='w')||feedbacks[0];
+  if(worst){
+    document.getElementById('coachTxt').textContent=worst.msg;
+    if(voiceOn&&now-lastSpeakMs>6000){lastSpeakMs=now;speak(worst.msg);}
+  }
+}
+
+function renderFB(){
+  if(!feedbacks.length){
+    document.getElementById('fbBody').innerHTML='<div class="fb-empty">분석을 시작하면 코치 피드백이 표시됩니다</div>';
+    return;
+  }
+  document.getElementById('fbBody').innerHTML=feedbacks.map(f=>`
+    <div class="fb-item"><div class="fb-dot dot-${f.t}"></div><div class="fb-txt">${f.msg}</div></div>`).join('');
+}
+
+function updatePhase(){
+  const phases=PHASES[club]||PHASES['드라이버'];
+  document.getElementById('phaseHud').textContent=phases[curPhase]||'스윙';
+  renderPoseRef();
+}
+
+function toggleAnalysis(){
+  analyzing=!analyzing;
+  const btn=document.getElementById('analyzeBtn');
+  if(analyzing){
+    btn.textContent='■ 분석 중지'; btn.className='btn-analyze btn-stop';
+    setPill('● LIVE','pill-live');
+    document.getElementById('coachTxt').textContent='분석 중... 스윙 자세를 취해보세요!';
+    if(!stream) startCam();
+  } else {
+    btn.textContent='▶ 분석 시작'; btn.className='btn-analyze btn-go';
+    setPill('일시정지','pill-pause');
+    document.getElementById('coachTxt').textContent='일시정지됨. 다시 시작하려면 버튼을 누르세요.';
+    if('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }
+}
+
+function setPill(txt,cls){
+  const p=document.getElementById('livePill');
+  p.textContent=txt; p.className='live-pill '+cls;
+}
+
+function toggleVoice(){
+  voiceOn=!voiceOn;
+  document.getElementById('voiceBtn').textContent=voiceOn?'🔊':'🔇';
+  document.getElementById('voiceBtn').classList.toggle('muted',!voiceOn);
+  if(!voiceOn&&'speechSynthesis' in window) window.speechSynthesis.cancel();
+  speak(voiceOn?'음성 피드백을 켰습니다':'음성 피드백을 껐습니다');
+}
+
+function speak(txt){
+  if(!voiceOn||!('speechSynthesis' in window))return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(txt);
+  u.lang='ko-KR'; u.rate=0.92; u.pitch=1.0;
+  window.speechSynthesis.speak(u);
+}
+
+function stopAll(){
+  analyzing=false;
+  if(camInst){try{camInst.stop();}catch(_){}}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
+  document.getElementById('vid').style.display='none';
+  document.getElementById('poseCanvas').style.display='none';
+  document.getElementById('camPH').style.display='flex';
+  document.getElementById('hudTop').style.display='none';
+  document.getElementById('coachBubble').style.display='none';
+}
+
+window.addEventListener('pagehide', stopAll);
+renderPoseRef();
+</script>
+</body>
+</html>
